@@ -1,1 +1,92 @@
-
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#dcecf4"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="苗栗太太">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png">
+<title>苗栗太太｜店家整理器</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:20px 14px 42px;background:#f4f7f8;color:#304654;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}main{max-width:720px;margin:auto}.brand{font-size:12px;letter-spacing:.2em;color:#8095a0}.box{background:#fff;border-radius:18px;padding:19px;margin:13px 0;box-shadow:0 8px 28px #3046540c}h1{font-size:24px;margin:8px 0}.desc,small{color:#71818a;line-height:1.7;font-size:13px}label{display:block;font-weight:700;margin:13px 0 6px}input,textarea{width:100%;padding:12px;border:1px solid #ccd8df;border-radius:10px;font:16px -apple-system,BlinkMacSystemFont,sans-serif;color:#304654;background:#fff}textarea{min-height:66px}button{width:100%;padding:14px;margin-top:11px;border:0;border-radius:11px;background:#344f60;color:white;font-size:15px;font-weight:700}.secondary{background:#8aa3b0}.days{display:grid;grid-template-columns:1fr 1fr;gap:8px}.status{padding:12px;background:#fff7e9;border-radius:10px;margin-top:12px;line-height:1.65;font-size:14px}#poster{background:linear-gradient(#dcecf4,#fffaf2);padding:22px;border-radius:16px;line-height:1.8}#out{white-space:pre-wrap;background:#fffaf2;padding:13px;border-radius:10px;line-height:1.8}.source{border:1px solid #dbe4e8;padding:12px;border-radius:12px;margin-top:12px}
+</style></head>
+<body><main><div class="brand">MIAOLI TAITAI</div>
+<section class="box"><h1>苗栗太太｜店家整理器</h1>
+<p class="desc">三種免費查找方式：Google Maps 網址、OpenStreetMap 公開地圖、店名／地址搜尋。查詢結果請核對，未收錄的營業時間會留空，不會猜測。</p>
+<div class="source"><b>方式 A｜Google Maps</b><label for="map">貼上 Google Maps 網址</label><input id="map" placeholder="https://maps.app.goo.gl/...">
+<button class="secondary" id="openMap">開啟 Google Maps</button></div>
+<div class="source"><b>方式 B｜免費公開地圖</b><label for="query">店家名稱或地址</label><input id="query" placeholder="例如：小樹的家咖啡民宿 銅鑼">
+<button id="osmSearch">搜尋 OpenStreetMap 資料</button></div>
+<div class="source"><b>方式 C｜搜尋公開網頁</b><button class="secondary" id="webSearch">用 Google 搜尋店家資訊</button></div>
+<div id="status" class="status" hidden></div><div id="matches"></div>
+<small>說明：Google Maps 網址可供開啟與人工核對；本免費網頁不能保證直接讀取 Google Maps 店家資料。OpenStreetMap 只會回傳其資料庫已有的項目，營業時間也可能缺漏。</small>
+</section>
+<section class="box"><label>店家名稱</label><input id="name" placeholder="搜尋結果可點選帶入，也可手動填寫">
+<label>地址</label><input id="address" placeholder="完整地址">
+<label>營業時間（逐日填寫）</label><div class="days" id="days"></div>
+<label>備註／預設句子（可修改）</label><textarea id="note">營業時間如有異動，請以店家公告為準。</textarea>
+<label>Hashtag（5 個）</label><input id="tags" value="#苗栗美食 #苗栗景點 #苗栗太太 #在地推薦 #店家資訊">
+<button id="make">產生介紹文字與圖片</button></section>
+<section class="box" id="result" hidden><h2>貼文文字</h2><div id="out"></div><button id="copy">複製文字</button><h2>圖片預覽</h2><div id="poster"><h2 id="pname"></h2><p id="paddr"></p><b>🕒 營業時間</b><p id="phours"></p><p id="pnote"></p></div><button class="secondary" id="png">下載／分享 PNG</button><p id="pngmsg" class="desc"></p></section>
+</main>
+<script>
+const weekdays=['星期一','星期二','星期三','星期四','星期五','星期六','星期日'];
+weekdays.forEach((d,i)=>{const el=document.createElement('div');el.innerHTML=`<label>${d}</label><input id="day${i}" placeholder="待確認／公休／時間">`;document.querySelector('#days').append(el)});
+const v=id=>document.getElementById(id).value.trim();
+const status=s=>{const e=document.querySelector('#status');e.hidden=false;e.textContent=s};
+const hours=()=>weekdays.map((d,i)=>`${d}｜${v('day'+i)||'待確認'}`).join('\n');
+document.querySelector('#openMap').onclick=()=>{if(!v('map'))return alert('請先貼上 Google Maps 網址');window.open(v('map'),'_blank','noopener')};
+document.querySelector('#webSearch').onclick=()=>{const q=v('query')||v('name')||v('map');if(!q)return alert('請先輸入店名、地址或地圖網址');window.open('https://www.google.com/search?q='+encodeURIComponent(q+' 地址 營業時間'),'_blank','noopener')};
+document.querySelector('#osmSearch').onclick=async()=>{
+ const q=v('query');if(!q)return alert('請輸入店家名稱或地址');
+ const btn=document.querySelector('#osmSearch');btn.disabled=true;btn.textContent='搜尋中…';document.querySelector('#matches').innerHTML='';
+ status('正在查詢 OpenStreetMap 公開資料…');
+ try{
+  const url='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&namedetails=1&extratags=1&limit=8&countrycodes=tw&q='+encodeURIComponent(q);
+  const r=await fetch(url,{headers:{'Accept-Language':'zh-TW'}});
+  if(!r.ok)throw Error('公開地圖服務暫時無法使用');
+  const arr=await r.json();
+  if(!arr.length){status('沒有找到符合的公開地圖資料。可以改用店名＋鄉鎮搜尋，或使用公開網頁搜尋，再手動填入。');return}
+  status(`找到 ${arr.length} 筆可能符合的資料。請點選正確店家帶入欄位。`);
+  arr.forEach((item)=>{
+   const box=document.createElement('div');box.className='source';
+   const title=item.name||item.namedetails?.name||'未命名地點';
+   const addr=item.display_name||'地址資料不完整';
+   const hours=item.extratags?.opening_hours||'';
+   box.innerHTML=`<b></b><p class="desc"></p><small></small><button type="button">帶入這筆資料</button>`;
+   box.querySelector('b').textContent=title;box.querySelector('p').textContent=addr;box.querySelector('small').textContent=hours?'營業時間（原始資料）：'+hours:'此筆資料沒有營業時間';
+   box.querySelector('button').onclick=()=>{
+    document.querySelector('#name').value=title;
+    document.querySelector('#address').value=addr;
+    if(hours){const parsed=parseHours(hours);parsed.forEach((x,i)=>{if(x)document.querySelector('#day'+i).value=x})}
+    status('已帶入所選店家名稱與地址。營業時間若有收錄會嘗試解析，請再核對。');
+    document.querySelector('#name').scrollIntoView({behavior:'smooth',block:'center'});
+   };
+   document.querySelector('#matches').append(box);
+  });
+ }catch(e){status('查詢失敗：可能是網路、瀏覽器跨來源限制或公開服務暫時忙碌。請改用公開網頁搜尋或手動填寫。')}
+ finally{btn.disabled=false;btn.textContent='搜尋 OpenStreetMap 資料'}
+};
+function parseHours(raw){
+ const map={Mo:0,Tu:1,We:2,Th:3,Fr:4,Sa:5,Su:6},out=Array(7).fill('');
+ for(const rule of raw.split(';')){
+  const m=rule.trim().match(/^((?:Mo|Tu|We|Th|Fr|Sa|Su)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?(?:,(?:Mo|Tu|We|Th|Fr|Sa|Su)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?)*)\s+(.+)$/);
+  if(!m)continue;let ids=[];
+  for(const t of m[1].split(',')){if(t.includes('-')){let [a,b]=t.split('-'),i=map[a],end=map[b];if(i!==undefined&&end!==undefined){while(true){ids.push(i);if(i===end)break;i=(i+1)%7}}}else if(map[t]!==undefined)ids.push(map[t])}
+  ids.forEach(i=>out[i]=m[2].replace(/\boff\b/ig,'公休'));
+ }
+ return out;
+}
+document.querySelector('#make').onclick=()=>{
+ if(!v('name'))return alert('請填寫店家名稱');
+ const note=v('note');out.textContent=`⭐️ ${v('name')}\n\n📍 ${v('address')||'地址待確認'}\n\n🕒 營業時間\n${hours()}\n\n⚠️ ${note}\n\n${v('tags')}`;
+ pname.textContent=v('name');paddr.textContent='📍 '+(v('address')||'地址待確認');phours.textContent=hours();pnote.textContent='⚠️ '+note;result.hidden=false;
+};
+document.querySelector('#copy').onclick=async()=>{try{await navigator.clipboard.writeText(out.textContent);copy.textContent='已複製文字！'}catch(e){status('瀏覽器不允許自動複製，請長按貼文文字全選複製。')}};
+document.querySelector('#png').onclick=()=>{
+ const lines=['📍 '+(v('address')||'地址待確認'),'🕒 營業時間',...hours().split('\n'),'⚠️ '+v('note')];
+ const W=720,pad=40,lh=48,H=150+lines.length*lh,c=document.createElement('canvas');c.width=W*2;c.height=H*2;
+ const x=c.getContext('2d');x.scale(2,2);const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#dcecf4');g.addColorStop(1,'#fffaf2');x.fillStyle=g;x.fillRect(0,0,W,H);
+ x.fillStyle='#304654';x.font='bold 38px sans-serif';x.fillText(v('name'),pad,72);let y=145;lines.forEach(t=>{x.font=t==='🕒 營業時間'?'bold 26px sans-serif':'23px sans-serif';x.fillText(t,pad,y);y+=lh});
+ c.toBlob(async blob=>{if(!blob)return alert('圖片產生失敗');const f=new File([blob],'苗栗太太_店家介紹.png',{type:'image/png'});if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'苗栗太太店家介紹'})}catch(e){}}else{const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),20000)}pngmsg.textContent='iPhone 分享選單出現後，選「儲存影像」或「儲存到檔案」。'},'image/png');
+};
+if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+</script></body></html>
