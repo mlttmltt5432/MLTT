@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#dcecf4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="苗栗太太">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>苗栗太太｜店家整理器</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:20px 14px 42px;background:#f4f7f8;color:#304654;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}
+main{max-width:720px;margin:auto}.brand{font-size:12px;letter-spacing:.2em;color:#8095a0}
+.box{background:#fff;border-radius:18px;padding:19px;margin:13px 0;box-shadow:0 8px 28px #3046540c}
+h1{font-size:24px;margin:8px 0}h2{font-size:20px}.desc,small{color:#71818a;line-height:1.7;font-size:13px}
+label{display:block;font-weight:700;margin:13px 0 6px}
+input,textarea{width:100%;padding:12px;border:1px solid #ccd8df;border-radius:10px;font:16px -apple-system,BlinkMacSystemFont,sans-serif;color:#304654;background:#fff}
+textarea{min-height:66px}button{width:100%;padding:14px;margin-top:11px;border:0;border-radius:11px;background:#344f60;color:white;font-size:15px;font-weight:700}
+.secondary{background:#8aa3b0}
+.days{display:flex;flex-direction:column;gap:10px}
+.days>div{display:grid;grid-template-columns:88px minmax(0,1fr);align-items:center;gap:10px}
+.days label{margin:0}
+.days input{min-width:0}
+
+#poster{width:100%;aspect-ratio:3/4;background:#a9bfd4;padding:26px;border-radius:28px;overflow:hidden;color:#07101e;display:flex;flex-direction:column;line-height:1.5}.poster-name{font-size:clamp(23px,6vw,36px);font-weight:900;margin:8px 0 18px}.poster-address{font-size:clamp(18px,4.8vw,29px);font-weight:800;margin-bottom:26px}.poster-hours-title{font-size:clamp(21px,5vw,31px);font-weight:900;margin-bottom:12px}.poster-hours{font-size:clamp(16px,4vw,25px);font-weight:800;line-height:1.85;white-space:pre-line;padding-left:22px}.poster-note{font-size:clamp(17px,4.3vw,26px);font-weight:900;margin-top:auto;padding:12px 4px}
+#out{white-space:pre-wrap;background:#fffaf2;padding:13px;border-radius:10px;line-height:1.8;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<main>
+<div class="brand">MIAOLI TAITAI</div>
+<section class="box">
+<h1>苗栗太太｜店家整理器</h1>
+<p class="desc">手動整理店家資訊，填寫完成後即可產生貼文文字與 PNG 圖片。</p>
+</section>
+<section class="box">
+<label for="name">店家名稱</label><input id="name" placeholder="請手動輸入店家名稱">
+<label for="address">地址</label><input id="address" placeholder="請手動輸入完整地址">
+<label>營業時間（逐日填寫）</label><div class="days" id="days"></div>
+<label for="note">備註／預設句子（可修改）</label><textarea id="note">營業時間如有異動，請以店家公告為準。</textarea>
+<label for="tags">Hashtag（4 個）</label><input id="tags" value="#苗栗美食 #苗栗景點 #苗栗 #苗栗太太">
+<button id="make" type="button">產生介紹文字與圖片</button>
+</section>
+<section class="box" id="result" hidden>
+<h2>貼文文字</h2><div id="out"></div><button id="copy" type="button">複製文字</button>
+<h2>圖片預覽</h2><div id="poster" class="poster-preview"><div id="pname" class="poster-name"></div><div id="paddr" class="poster-address"></div><div class="poster-hours-title">🕒 營業時間</div><div id="phours" class="poster-hours"></div><div id="pnote" class="poster-note"></div></div>
+<button class="secondary" id="png" type="button">下載／分享 PNG</button><p id="pngmsg" class="desc"></p>
+</section>
+</main>
+<script>
+(() => {
+const weekdays=['星期一','星期二','星期三','星期四','星期五','星期六','星期日'];
+const $=id=>document.getElementById(id);
+const val=id=>$(id).value.trim();
+weekdays.forEach((day,i)=>{
+ const wrap=document.createElement('div');
+ const label=document.createElement('label'); label.textContent=day; label.htmlFor='day'+i;
+ const input=document.createElement('input'); input.id='day'+i; input.placeholder='待確認／公休／時間';
+ wrap.append(label,input); $('days').append(wrap);
+});
+const hours=()=>weekdays.map((day,i)=>`${day}｜${val('day'+i)||'待確認'}`).join('\n');
+$('make').addEventListener('click',()=>{
+ if(!val('name')){alert('請填寫店家名稱');return;}
+ const note=val('note');
+ $('out').textContent=`⭐️ ${val('name')}\n\n📍 ${val('address')||'地址待確認'}\n\n🕒 營業時間\n${hours()}\n\n⚠️ ${note}\n\n${val('tags')}`;
+ $('pname').textContent='⭐ '+val('name'); $('paddr').textContent='📍 '+(val('address')||'地址待確認');
+ $('phours').textContent=hours(); $('pnote').textContent='⚠️ '+note; $('result').hidden=false;
+});
+$('copy').addEventListener('click',async()=>{
+ try{await navigator.clipboard.writeText($('out').textContent);$('copy').textContent='已複製文字！';}
+ catch(e){alert('請長按貼文文字，全選後複製。');}
+});
+$('png').addEventListener('click',()=>{
+ const W=720,H=960,pad=48;
+ const c=document.createElement('canvas');c.width=W*2;c.height=H*2;
+ const ctx=c.getContext('2d');ctx.scale(2,2);
+
+ // Only the background/accent colors change. The layout stays identical.
+ const palettes=[
+  ['#a9bfd4','#07101e'],['#c2c9c1','#26372f'],['#c9b9b0','#493a35'],
+  ['#c5cbd5','#303b4c'],['#d0c5aa','#4d4635'],['#c9bfd0','#463e50'],
+  ['#c4cbb6','#3e4835'],['#d2bfc2','#4e3c42'],['#b9c9c8','#344947'],
+  ['#d8c6ad','#514333'],['#bfc8d8','#394354'],['#d4c2ae','#514337'],
+  ['#c1cbbb','#3f4938'],['#d2c4c8','#514149'],['#b7c9d0','#354950'],
+  ['#d5cdb8','#514b39'],['#c8c0b4','#494238'],['#c2b8c9','#473f4d'],
+  ['#c9c9bd','#48483d'],['#d1bdb0','#513f38'],['#b9c4bc','#38463e'],
+  ['#c4cbd0','#3d484e'],['#d0c2b4','#51453b'],['#c5c4d1','#444353']
+ ];
+ const [bg,ink]=palettes[Math.floor(Math.random()*palettes.length)];
+ // 白色畫布＋單一純色圓角底板，與使用者參考圖一致；不使用漸層或裝飾色條。
+ ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);
+ ctx.fillStyle=bg;ctx.beginPath();ctx.roundRect(28,28,W-56,H-56,42);ctx.fill();
+
+ const fit=(text,max,start,min,weight=900)=>{
+   let s=start;
+   while(s>min){ctx.font=`${weight} ${s}px sans-serif`;if(ctx.measureText(text).width<=max)break;s-=1;}
+   return s;
+ };
+
+ // Match the approved sample: one clean background, no inner panels.
+ ctx.fillStyle=ink;
+ const shop='⭐ '+(val('name')||'店家名稱');
+ let size=fit(shop,W-pad*2,52,30,900);
+ ctx.font=`900 ${size}px sans-serif`;ctx.fillText(shop,pad,122);
+
+ const address='📍 '+(val('address')||'地址待確認');
+ size=Math.min(size-5,fit(address,W-pad*2,38,22,800));
+ ctx.font=`800 ${size}px sans-serif`;ctx.fillText(address,pad,196);
+
+ ctx.font='900 38px sans-serif';ctx.fillText('🕒 營業時間',pad,280);
+
+ weekdays.forEach((day,i)=>{
+   const y=354+i*66;
+   ctx.font='900 31px sans-serif';ctx.fillText(day,pad+24,y);
+   ctx.font='900 31px sans-serif';ctx.fillText('｜',pad+190,y);
+   const time=val('day'+i)||'待確認';
+   const max=W-pad*2-235;
+   const ts=fit(time,max,31,22,800);
+   ctx.font=`800 ${ts}px sans-serif`;ctx.fillText(time,pad+235,y);
+ });
+
+ const note='⚠️ '+(val('note')||'營業時間如有異動，請以店家公告為準。');
+ const noteSize=25;
+ ctx.font=`900 ${noteSize}px sans-serif`;
+ const noteMaxWidth=W-pad*2;
+ const noteLines=[];
+ let noteLine='';
+ for(const ch of Array.from(note)){
+   if(ctx.measureText(noteLine+ch).width>noteMaxWidth && noteLine){
+     noteLines.push(noteLine);
+     noteLine=ch;
+   }else{
+     noteLine+=ch;
+   }
+ }
+ if(noteLine)noteLines.push(noteLine);
+ const noteLineHeight=36;
+ let noteY=H-92-(noteLines.length-1)*noteLineHeight;
+ noteLines.forEach(line=>{
+   ctx.fillText(line,pad,noteY);
+   noteY+=noteLineHeight;
+ });
+
+ c.toBlob(async blob=>{
+  if(!blob){alert('圖片產生失敗，請再試一次。');return;}
+  const file=new File([blob],'苗栗太太_店家介紹.png',{type:'image/png'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+   try{await navigator.share({files:[file],title:'苗栗太太店家介紹'});}catch(e){}
+  }else{
+   const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),20000);
+  }
+  $('pngmsg').textContent='版面維持原樣，本次背景配色已隨機抽選。';
+ },'image/png');
+});
+})();
+</script>
+</body>
+</html>
